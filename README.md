@@ -1,0 +1,1 @@
+# stCarolas-setup-maven
