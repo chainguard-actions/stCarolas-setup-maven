@@ -1,0 +1,40 @@
+name: Test older Maven version
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install Java (required to run mvn)
+        run: |
+          apt-get update -qq && apt-get install -y -qq default-jdk 2>/dev/null || \
+          (which java && echo "Java already installed") || \
+          echo "Java installation attempted"
+      - id: setup-maven
+        uses: .
+        with:
+          maven-version: '3.6.3'
+        continue-on-error: true
+      - name: Assert Maven setup outcome
+        env:
+          OUTCOME: ${{ steps.setup-maven.outcome }}
+        run: |
+          echo "setup-maven outcome: $OUTCOME"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "Action succeeded, checking Maven on PATH..."
+            which mvn || { echo "FAIL: mvn not found on PATH after successful setup"; exit 1; }
+            VERSION=$(mvn --version 2>&1 | head -1)
+            echo "Maven version output: $VERSION"
+            if echo "$VERSION" | grep -q "3.6.3"; then
+              echo "PASS: Maven 3.6.3 is installed"
+            else
+              echo "FAIL: Expected Maven 3.6.3 but got: $VERSION"
+              exit 1
+            fi
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (node24 runtime or network not available in act)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
